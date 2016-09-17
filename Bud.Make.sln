@@ -5,6 +5,8 @@ VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bud.Make", "Bud.Make\Bud.Make.csproj", "{A794B16D-45C5-4050-8207-49CF707C6FDE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bud.Make.Test", "Bud.Make.Test\Bud.Make.Test.csproj", "{C7FAA2D7-C6E3-45F4-939A-1BA01E2D9996}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{A794B16D-45C5-4050-8207-49CF707C6FDE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A794B16D-45C5-4050-8207-49CF707C6FDE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A794B16D-45C5-4050-8207-49CF707C6FDE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C7FAA2D7-C6E3-45F4-939A-1BA01E2D9996}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7FAA2D7-C6E3-45F4-939A-1BA01E2D9996}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7FAA2D7-C6E3-45F4-939A-1BA01E2D9996}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7FAA2D7-C6E3-45F4-939A-1BA01E2D9996}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

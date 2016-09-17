@@ -2,6 +2,6 @@ version: 1.0.0-b{build}
 before_build:
 - ps: nuget restore
 build:
-  project: Bud.Reactive.sln
+  project: Bud.Make.sln
   verbosity: minimal
 deploy: off
