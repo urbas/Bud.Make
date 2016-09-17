@@ -8,7 +8,7 @@ using NUnit.Framework;
 namespace Bud.Make {
   public class RulesTest {
     [Test]
-    public void Execute_invokes_the_recipe_when_output_file_not_present() {
+    public void DoMake_invokes_the_recipe_when_output_file_not_present() {
       using (var dir = new TmpDir()) {
         dir.CreateFile("This is Sparta!", "foo.in");
         Rules.DoMake("foo.out", dir.Path, Rules.Rule("foo.out", RemoveSpaces, "foo.in"));
@@ -18,7 +18,7 @@ namespace Bud.Make {
     }
 
     [Test]
-    public void Execute_does_not_invoke_the_recipe_when_output_file_is_newer() {
+    public void DoMake_does_not_invoke_the_recipe_when_output_file_is_newer() {
       using (var dir = new TmpDir()) {
         var recipeMock = new Mock<SingleFileBuilder>();
         var inputFile = dir.CreateEmptyFile("foo.in");
@@ -31,17 +31,17 @@ namespace Bud.Make {
     }
 
     [Test]
-    public void Execute_throws_when_given_duplicate_rules() {
+    public void DoMake_throws_when_given_duplicate_rules() {
       var exception = Assert.Throws<Exception>(() => {
         Rules.DoMake("foo",
-                    Rules.Rule("foo", RemoveSpaces, "bar"),
-                    Rules.Rule("foo", RemoveSpaces, "moo"));
+                     Rules.Rule("foo", RemoveSpaces, "bar"),
+                     Rules.Rule("foo", RemoveSpaces, "moo"));
       });
       Assert.That(exception.Message, Does.Contain("'foo'"));
     }
 
     [Test]
-    public void Execute_throws_when_rule_does_not_exist() {
+    public void DoMake_throws_when_rule_does_not_exist() {
       var exception = Assert.Throws<Exception>(() => {
         Rules.DoMake("invalid.out", "/foo/bar", Rules.Rule("out", RemoveSpaces, "in"));
       });
@@ -49,41 +49,41 @@ namespace Bud.Make {
     }
 
     [Test]
-    public void Execute_invokes_dependent_recipes() {
+    public void DoMake_invokes_dependent_recipes() {
       using (var dir = new TmpDir()) {
         dir.CreateFile("foo bar", "foo");
         var expectedOutput = dir.CreateFile("FOO BAR and foobar", "expected_output");
         Rules.DoMake("foo.joined",
-                    dir.Path,
-                    Rules.Rule("foo.upper", Uppercase, "foo"),
-                    Rules.Rule("foo.nospace", RemoveSpaces, "foo"),
-                    Rules.Rule("foo.joined", WriteAndSeparatedFileContents, "foo.upper", "foo.nospace"));
+                     dir.Path,
+                     Rules.Rule("foo.upper", Uppercase, "foo"),
+                     Rules.Rule("foo.nospace", RemoveSpaces, "foo"),
+                     Rules.Rule("foo.joined", WriteAndSeparatedFileContents, "foo.upper", "foo.nospace"));
         FileAssert.AreEqual(expectedOutput, dir.CreatePath("foo.joined"));
       }
     }
 
     [Test]
-    public void Execute_does_not_invoke_dependent_rules_twice() {
+    public void DoMake_does_not_invoke_dependent_rules_twice() {
       var recipeMock = new Mock<SingleFileBuilder>();
       Rules.DoMake("foo.out3",
-                  "/foo/bar",
-                  Rules.Rule("foo.out1", recipeMock.Object, "foo.in"),
-                  Rules.Rule("foo.out2", (string inFile, string outFile) => {}, "foo.out1"),
-                  Rules.Rule("foo.out3", (inFiles, outFile) => {}, "foo.out1", "foo.out2"));
+                   "/foo/bar",
+                   Rules.Rule("foo.out1", recipeMock.Object, "foo.in"),
+                   Rules.Rule("foo.out2", (string inFile, string outFile) => {}, "foo.out1"),
+                   Rules.Rule("foo.out3", (inFiles, outFile) => {}, "foo.out1", "foo.out2"));
       recipeMock.Verify(s => s(It.IsAny<string>(), It.IsAny<string>()),
                         Times.Once);
     }
 
     [Test]
-    public void Execute_throws_when_there_is_a_cycle() {
+    public void DoMake_throws_when_there_is_a_cycle() {
       var recipeMock = new Mock<SingleFileBuilder>();
       var ex = Assert.Throws<Exception>(() => {
         Rules.DoMake("foo.out2",
-                    "/foo/bar",
-                    Rules.Rule("foo.out1", recipeMock.Object, "foo.in1"),
-                    Rules.Rule("foo.out2", recipeMock.Object, "foo.in2"),
-                    Rules.Rule("foo.in1", recipeMock.Object, "foo.out2"),
-                    Rules.Rule("foo.in2", recipeMock.Object, "foo.out1"));
+                     "/foo/bar",
+                     Rules.Rule("foo.out1", recipeMock.Object, "foo.in1"),
+                     Rules.Rule("foo.out2", recipeMock.Object, "foo.in2"),
+                     Rules.Rule("foo.in1", recipeMock.Object, "foo.out2"),
+                     Rules.Rule("foo.in2", recipeMock.Object, "foo.out1"));
       });
       Assert.That(ex.Message,
                   Does.Contain("'foo.out2 <- foo.in2 <- foo.out1 <- foo.in1 <- foo.out2'"));
