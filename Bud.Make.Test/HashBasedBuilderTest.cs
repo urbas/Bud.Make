@@ -4,7 +4,7 @@ using System.IO;
 using Moq;
 using NUnit.Framework;
 
-namespace Bud {
+namespace Bud.Make {
   public class HashBasedBuilderTest {
     private TmpDir dir;
     private Mock<FilesBuilder> outputGenerator;

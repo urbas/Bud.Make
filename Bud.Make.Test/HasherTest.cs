@@ -3,8 +3,8 @@ using System.Linq;
 using System.Security.Cryptography;
 using NUnit.Framework;
 
-namespace Bud {
-  public class Md5HasherTest {
+namespace Bud.Make {
+  public class HasherTest {
     private static readonly byte[] Salt = {0x13};
 
     [Test]

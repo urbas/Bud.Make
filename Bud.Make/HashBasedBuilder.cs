@@ -1,14 +1,16 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 
-namespace Bud {
+namespace Bud.Make {
   /// <summary>
-  ///   A collection of utility functions for building output files from input files.
+  ///   A collection of utility functions for building output files from input files. Hash digests of the input files are
+  ///   used to determine whether the output file is outdated.
   /// </summary>
   public static class HashBasedBuilder {
-    private static readonly byte[] DefaultSalt = new byte[0];
+    private static readonly byte[] DefaultSalt = Array.Empty<byte>();
 
     /// <summary>
     ///   Calculates the hash of <paramref name="input" /> file and invokes <paramref name="filesBuilder" />

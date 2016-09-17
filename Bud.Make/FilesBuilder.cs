@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace Bud {
+namespace Bud.Make {
   /// <summary>
   ///   This builder takes a list of input files and produces an output file.
   ///   This method must be blocking. That is, by the time this method returns, the output

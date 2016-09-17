@@ -7,7 +7,7 @@
     <ProjectGuid>{C7FAA2D7-C6E3-45F4-939A-1BA01E2D9996}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Bud</RootNamespace>
+    <RootNamespace>Bud.Make</RootNamespace>
     <AssemblyName>Bud.Make.Test</AssemblyName>
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -68,8 +68,8 @@
     <Compile Include="Digest.cs" />
     <Compile Include="DigestGenerator.cs" />
     <Compile Include="HashBasedBuilderTest.cs" />
-    <Compile Include="MakeTest.cs" />
-    <Compile Include="Md5HasherTest.cs" />
+    <Compile Include="RulesTest.cs" />
+    <Compile Include="HasherTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TimestampBasedBuilderTest.cs" />
   </ItemGroup>

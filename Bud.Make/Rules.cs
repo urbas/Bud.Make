@@ -4,13 +4,13 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 
-namespace Bud {
+namespace Bud.Make {
   /// <summary>
   ///   A library that provides functionality similar to GNU Make.
   /// </summary>
-  public static class Make {
+  public static class Rules {
     /// <summary>
-    ///   Creates a <see cref="Bud.Rule" />. A rule contains a <paramref name="recipe" /> that describes how to build the
+    ///   Creates a <see cref="Make.Rule" />. A rule contains a <paramref name="recipe" /> that describes how to build the
     ///   <paramref name="output" /> from the given <paramref name="input" />.
     /// </summary>
     /// <param name="output">
@@ -22,7 +22,7 @@ namespace Bud {
     /// </param>
     /// <param name="input">the file from which to build the <paramref name="output" /></param>
     /// <returns>
-    ///   a <see cref="Bud.Rule" /> initialised with a <paramref name="recipe" />, <paramref name="output" />, and
+    ///   a <see cref="Make.Rule" /> initialised with a <paramref name="recipe" />, <paramref name="output" />, and
     ///   <paramref name="input" />.
     /// </returns>
     public static Rule Rule(string output,
@@ -33,7 +33,7 @@ namespace Bud {
                   ImmutableArray.Create(input));
 
     /// <summary>
-    ///   Creates a <see cref="Bud.Rule" />. A rule contains a <paramref name="recipe" /> that describes how to build the
+    ///   Creates a <see cref="Make.Rule" />. A rule contains a <paramref name="recipe" /> that describes how to build the
     ///   <paramref name="output" /> from the given <paramref name="input" />.
     /// </summary>
     /// <param name="output">
@@ -45,7 +45,7 @@ namespace Bud {
     /// </param>
     /// <param name="input">the files from which to build the <paramref name="output" /></param>
     /// <returns>
-    ///   a <see cref="Bud.Rule" /> initialised with a <paramref name="recipe" />, <paramref name="output" />, and
+    ///   a <see cref="Make.Rule" /> initialised with a <paramref name="recipe" />, <paramref name="output" />, and
     ///   <paramref name="input" />.
     /// </returns>
     public static Rule Rule(string output,
@@ -65,36 +65,38 @@ namespace Bud {
     ///   This method executes the rules in a single thread synchronously.
     /// </summary>
     public static void DoMake(string ruleToBuild, string workingDir, params Rule[] rules) {
-      var rulesDictionary = new Dictionary<string, Rule>();
+      var outputToRule = new Dictionary<string, Rule>();
       foreach (var r in rules) {
-        if (rulesDictionary.ContainsKey(r.Output)) {
+        if (outputToRule.ContainsKey(r.Output)) {
           throw new Exception($"Found a duplicate rule '{r.Output}'.");
         }
-        rulesDictionary.Add(r.Output, r);
+        outputToRule.Add(r.Output, r);
       }
-      var ruleOptional = rulesDictionary.Get(ruleToBuild);
+      var ruleOptional = outputToRule.Get(ruleToBuild);
       if (!ruleOptional.HasValue) {
         throw new Exception($"Could not find rule '{ruleToBuild}'.");
       }
       var rule = ruleOptional.Value;
-      InvokeRecipe(workingDir, rulesDictionary, rule, new HashSet<string>(), new List<string>());
+      InvokeRecipe(workingDir, outputToRule, rule, new HashSet<string>(), new HashSet<string>(), new List<string>());
     }
 
     private static void InvokeRecipe(string workingDir,
                                      IDictionary<string, Rule> rulesDictionary,
                                      Rule rule,
-                                     ISet<string> alreadyInvokedRules,
-                                     IList<string> currentlyExecutingRules) {
+                                     ISet<string> alreadyExecutedRules,
+                                     ISet<string> currentlyExecutingRules,
+                                     IList<string> currentExecutionPath) {
       if (currentlyExecutingRules.Contains(rule.Output)) {
         throw new Exception($"Detected a cycle in rule dependencies: " +
-                            $"'{rule.Output} -> {string.Join(" -> ", currentlyExecutingRules.Reverse())}'.");
+                            $"'{string.Join(" <- ", currentExecutionPath)} <- {rule.Output}'.");
       }
-      if (alreadyInvokedRules.Contains(rule.Output)) {
+      if (alreadyExecutedRules.Contains(rule.Output)) {
         return;
       }
       currentlyExecutingRules.Add(rule.Output);
+      currentExecutionPath.Add(rule.Output);
       foreach (var dependentRule in rule.Inputs.Gather(rulesDictionary.Get)) {
-        InvokeRecipe(workingDir, rulesDictionary, dependentRule, alreadyInvokedRules, currentlyExecutingRules);
+        InvokeRecipe(workingDir, rulesDictionary, dependentRule, alreadyExecutedRules, currentlyExecutingRules, currentExecutionPath);
       }
       var inputAbsPaths = rule.Inputs
                               .Select(input => Path.Combine(workingDir, input))
@@ -102,8 +104,9 @@ namespace Bud {
       TimestampBasedBuilder.Build(rule.Recipe,
                                   inputAbsPaths,
                                   Path.Combine(workingDir, rule.Output));
-      alreadyInvokedRules.Add(rule.Output);
-      currentlyExecutingRules.RemoveAt(currentlyExecutingRules.Count - 1);
+      alreadyExecutedRules.Add(rule.Output);
+      currentlyExecutingRules.Remove(rule.Output);
+      currentExecutionPath.RemoveAt(currentExecutionPath.Count - 1);
     }
   }
 }

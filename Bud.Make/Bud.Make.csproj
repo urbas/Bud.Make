@@ -7,7 +7,7 @@
     <ProjectGuid>{A794B16D-45C5-4050-8207-49CF707C6FDE}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Bud</RootNamespace>
+    <RootNamespace>Bud.Make</RootNamespace>
     <AssemblyName>Bud.Make</AssemblyName>
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -46,7 +46,7 @@
     <Compile Include="FilesHasher.cs" />
     <Compile Include="HashBasedBuilder.cs" />
     <Compile Include="Hasher.cs" />
-    <Compile Include="Make.cs" />
+    <Compile Include="Rules.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Rule.cs" />
     <Compile Include="SingleFileBuilder.cs" />

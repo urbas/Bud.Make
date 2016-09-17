@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace Bud {
+namespace Bud.Make {
   /// <summary>
   ///   This function reads the contents of the given <paramref name="files" />, add the <paramref name="salt" />, and
   ///   calculate the digest of the mix.

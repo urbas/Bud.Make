@@ -2,7 +2,11 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 
-namespace Bud {
+namespace Bud.Make {
+  /// <summary>
+  ///   Utility functions to build output files from input files. Timestamps are used to determine whether an output file is
+  ///   outdated.
+  /// </summary>
   public class TimestampBasedBuilder {
     /// <summary>
     ///   Builds a single file with the given list of inputs.

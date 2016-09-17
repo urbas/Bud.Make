@@ -14,9 +14,10 @@ The following example will build the file `foo.out` from the file `foo.in`.
 
 ```csharp
 using System.IO;
-using static Bud.Make;
+using static Bud.Make.Rules;
 
-class Build {
+class Build
+{
   static void Main(string[] args)
     => DoMake("foo.out", Rule("foo.out", RemoveSpaces, "foo.in"));
 

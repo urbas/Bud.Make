@@ -3,7 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 
-namespace Bud {
+namespace Bud.Make {
+  /// <summary>
+  ///   Convenience methods for hashing files.
+  /// </summary>
   public static class Hasher {
     /// <summary>
     ///   Calculates the hash of multiple files as if they formed one continuous stream of data.
