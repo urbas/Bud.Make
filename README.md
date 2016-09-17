@@ -16,8 +16,7 @@ The following example will build the file `foo.out` from the file `foo.in`.
 using System.IO;
 using static Bud.Make.Rules;
 
-class Build
-{
+class Build {
   static void Main(string[] args)
     => DoMake("foo.out", Rule("foo.out", RemoveSpaces, "foo.in"));
 

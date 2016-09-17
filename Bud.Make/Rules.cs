@@ -25,9 +25,7 @@ namespace Bud.Make {
     ///   a <see cref="Make.Rule" /> initialised with a <paramref name="recipe" />, <paramref name="output" />, and
     ///   <paramref name="input" />.
     /// </returns>
-    public static Rule Rule(string output,
-                            SingleFileBuilder recipe,
-                            string input)
+    public static Rule Rule(string output, SingleFileBuilder recipe, string input)
       => new Rule(output,
                   (inputFiles, outputFile) => recipe(inputFiles[0], outputFile),
                   ImmutableArray.Create(input));
@@ -48,9 +46,7 @@ namespace Bud.Make {
     ///   a <see cref="Make.Rule" /> initialised with a <paramref name="recipe" />, <paramref name="output" />, and
     ///   <paramref name="input" />.
     /// </returns>
-    public static Rule Rule(string output,
-                            FilesBuilder recipe,
-                            params string[] input)
+    public static Rule Rule(string output, FilesBuilder recipe, params string[] input)
       => new Rule(output, recipe, ImmutableArray.CreateRange(input));
 
     /// <summary>
