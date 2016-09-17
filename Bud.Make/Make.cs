@@ -3,10 +3,28 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using Bud.Building;
 
 namespace Bud {
+  /// <summary>
+  ///   A library that provides functionality similar to GNU Make.
+  /// </summary>
   public static class Make {
+    /// <summary>
+    ///   Creates a <see cref="Bud.Rule" />. A rule contains a <paramref name="recipe" /> that describes how to build the
+    ///   <paramref name="output" /> from the given <paramref name="input" />.
+    /// </summary>
+    /// <param name="output">
+    ///   the file that the <paramref name="recipe" /> generated from the given <paramref name="input" />
+    /// </param>
+    /// <param name="recipe">
+    ///   the algorithm that generates the <paramref name="output" /> from the given
+    ///   <paramref name="input" />.
+    /// </param>
+    /// <param name="input">the file from which to build the <paramref name="output" /></param>
+    /// <returns>
+    ///   a <see cref="Bud.Rule" /> initialised with a <paramref name="recipe" />, <paramref name="output" />, and
+    ///   <paramref name="input" />.
+    /// </returns>
     public static Rule Rule(string output,
                             SingleFileBuilder recipe,
                             string input)
@@ -14,10 +32,26 @@ namespace Bud {
                   (inputFiles, outputFile) => recipe(inputFiles[0], outputFile),
                   ImmutableArray.Create(input));
 
-    public static Rule Rule(string outputFile,
+    /// <summary>
+    ///   Creates a <see cref="Bud.Rule" />. A rule contains a <paramref name="recipe" /> that describes how to build the
+    ///   <paramref name="output" /> from the given <paramref name="input" />.
+    /// </summary>
+    /// <param name="output">
+    ///   the file that the <paramref name="recipe" /> generated from the given <paramref name="input" />
+    /// </param>
+    /// <param name="recipe">
+    ///   the algorithm that generates the <paramref name="output" /> from the given
+    ///   <paramref name="input" />.
+    /// </param>
+    /// <param name="input">the files from which to build the <paramref name="output" /></param>
+    /// <returns>
+    ///   a <see cref="Bud.Rule" /> initialised with a <paramref name="recipe" />, <paramref name="output" />, and
+    ///   <paramref name="input" />.
+    /// </returns>
+    public static Rule Rule(string output,
                             FilesBuilder recipe,
-                            params string[] inputFiles)
-      => new Rule(outputFile, recipe, ImmutableArray.CreateRange(inputFiles));
+                            params string[] input)
+      => new Rule(output, recipe, ImmutableArray.CreateRange(input));
 
     /// <summary>
     ///   Executes rule <paramref name="ruleToBuild" /> as defined in <paramref name="rules" />.

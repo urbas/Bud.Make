@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using System.Linq;
-using Bud.Building;
 
 namespace Bud {
   public class Rule {
