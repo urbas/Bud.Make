@@ -2,6 +2,7 @@
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Moq;
 using NUnit.Framework;
 
@@ -89,6 +90,52 @@ namespace Bud.Make {
                   Does.Contain("'foo.out2 <- foo.in2 <- foo.out1 <- foo.in1 <- foo.out2'"));
     }
 
+    [Test]
+    public void DoMake_executes_rules_in_parallel() {
+      using (var dir = new TmpDir()) {
+        var latchA = new CountdownEvent(1);
+        var latchB = new CountdownEvent(1);
+        dir.CreateFile("should be upper", "foo.in1");
+        dir.CreateFile("SHOULD BE LOWER", "foo.in2");
+        var expectedOutput = dir.CreateFile("SHOULD BE UPPER and should be lower", "expected_output");
+        Rules.DoMake("foo.joined",
+                     dir.Path,
+                     Rules.Rule("foo.upper", (input, output) => {
+                       latchA.Signal();
+                       latchB.Wait();
+                       Uppercase(input, output);
+                     }, "foo.in1"),
+                     Rules.Rule("foo.lower", (s, file) => {
+                       latchB.Signal();
+                       latchA.Wait();
+                       Lowercase(s, file);
+                     }, "foo.in2"),
+                     Rules.Rule("foo.joined", WriteAndSeparatedFileContents, "foo.upper", "foo.lower"));
+        FileAssert.AreEqual(expectedOutput, dir.CreatePath("foo.joined"));
+      }
+    }
+
+    [Test]
+    public void DoMake_executes_many_independent_rules() {
+      var recipeMock = new Mock<FilesBuilder>();
+      Rules.DoMake(new[] {"foo.nospace", "bar.nospace"}, GetComplexRules(recipeMock), "/dir");
+
+      var fooInput = ImmutableArray.Create(Path.Combine("/dir", "foo"));
+      recipeMock.Verify(r => r(fooInput, Path.Combine("/dir", "foo.nospace")));
+
+      var barInput = ImmutableArray.Create(Path.Combine("/dir", "bar"));
+      recipeMock.Verify(r => r(barInput, Path.Combine("/dir", "bar.nospace")));
+    }
+
+    [Test]
+    public void DoMake_does_not_invoke_repeated() {
+      var recipeMock = new Mock<FilesBuilder>();
+      Rules.DoMake(new[] { "foobar.nospace", "foobar.nospace.lu" }, GetComplexRules(recipeMock), "/dir");
+
+      var fooInput = ImmutableArray.Create(Path.Combine("/dir", "foo"));
+      recipeMock.Verify(r => r(fooInput, Path.Combine("/dir", "foo.nospace")), Times.Once);
+    }
+
     private static void RemoveSpaces(string inputFile, string outputFile) {
       var inputFileContent = File.ReadAllText(inputFile);
       var outputFileContent = inputFileContent.Replace(" ", "");
@@ -101,10 +148,25 @@ namespace Bud.Make {
       File.WriteAllText(outputFile, outputFileContent);
     }
 
+    private static void Lowercase(string inputFile, string outputFile) {
+      var inputFileContent = File.ReadAllText(inputFile);
+      var outputFileContent = inputFileContent.ToLowerInvariant();
+      File.WriteAllText(outputFile, outputFileContent);
+    }
+
     private static void WriteAndSeparatedFileContents(ImmutableArray<string> files, string outputFile) {
       var inputFilesContent = files.Select(File.ReadAllText);
       var outputFileContent = string.Join(" and ", inputFilesContent);
       File.WriteAllText(outputFile, outputFileContent);
     }
+
+    private static Rule[] GetComplexRules(IMock<FilesBuilder> recipeMock) => new[] {
+      Rules.Rule("foo.nospace", recipeMock.Object, "foo"),
+      Rules.Rule("foo.nospace.upper", recipeMock.Object, "foo.nospace"),
+      Rules.Rule("bar.nospace", recipeMock.Object, "bar"),
+      Rules.Rule("bar.nospace.lower", recipeMock.Object, "bar.nospace"),
+      Rules.Rule("foobar.nospace.lu", recipeMock.Object, "foo.nospace.upper", "bar.nospace.lower"),
+      Rules.Rule("foobar.nospace", recipeMock.Object, "foo.nospace", "bar.nospace")
+    };
   }
 }

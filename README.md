@@ -5,7 +5,7 @@ __Table of contents__
 
 # About
 
-Bud.Make is a C# library that provides functionality similar to GNU make.
+Bud.Make is a C# library that provides functionality similar to GNU make. The rules are invoked in parallel.
 
 
 ## Example
@@ -24,3 +24,7 @@ class Build {
     => File.WriteAllText(outputFile, File.ReadAllText(inputFile).Replace(" ", ""));
 }
 ```
+
+# Wishlist
+
+-   Hash-based build (instead of timestamps).

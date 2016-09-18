@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Bud.Make {
   /// <summary>
@@ -10,7 +11,7 @@ namespace Bud.Make {
   /// </summary>
   public static class Rules {
     /// <summary>
-    ///   Creates a <see cref="Make.Rule" />. A rule contains a <paramref name="recipe" /> that describes how to build the
+    ///   Creates a <see cref="Make.Rule" />. A startRule contains a <paramref name="recipe" /> that describes how to build the
     ///   <paramref name="output" /> from the given <paramref name="input" />.
     /// </summary>
     /// <param name="output">
@@ -31,7 +32,7 @@ namespace Bud.Make {
                   ImmutableArray.Create(input));
 
     /// <summary>
-    ///   Creates a <see cref="Make.Rule" />. A rule contains a <paramref name="recipe" /> that describes how to build the
+    ///   Creates a <see cref="Make.Rule" />. A startRule contains a <paramref name="recipe" /> that describes how to build the
     ///   <paramref name="output" /> from the given <paramref name="input" />.
     /// </summary>
     /// <param name="output">
@@ -50,59 +51,120 @@ namespace Bud.Make {
       => new Rule(output, recipe, ImmutableArray.CreateRange(input));
 
     /// <summary>
-    ///   Executes rule <paramref name="ruleToBuild" /> as defined in <paramref name="rules" />.
-    ///   This method executes the rules in a single thread synchronously.
+    ///   Executes <paramref name="rulesToBuild" /> in parallel.
+    /// </summary>
+    /// <param name="rulesToBuild">
+    ///   the outputs to build. These strings are matched against the outputs as defined in
+    ///   <paramref name="rules" />.
+    /// </param>
+    /// <param name="rules">a list of rules. This list is the definition of what can be built.</param>
+    /// <param name="workingDir">the directory relative to which the output and input files will be matched.</param>
+    /// <exception cref="Exception">
+    ///   thrown if there are duplicate rules specified in <paramref name="rules" /> or if there are
+    ///   cycles between rules.
+    /// </exception>
+    public static void DoMake(IEnumerable<string> rulesToBuild, IEnumerable<Rule> rules, string workingDir = null) {
+      workingDir = workingDir ?? Directory.GetCurrentDirectory();
+      var allRules = new Dictionary<string, Rule>();
+      foreach (var r in rules) {
+        if (allRules.ContainsKey(r.Output)) {
+          throw new Exception($"Found a duplicate rule '{r.Output}'.");
+        }
+        allRules.Add(r.Output, r);
+      }
+      var visitedRules = new HashSet<string>();
+      var dependentsOfThisRule = new HashSet<string>();
+      var orderedDependents = new List<string>();
+      var rulesTaskGraphs = new List<TaskGraph>();
+      foreach (var ruleOutput in rulesToBuild) {
+        var ruleOptional = allRules.Get(ruleOutput);
+        if (!ruleOptional.HasValue) {
+          throw new Exception($"Could not find rule '{ruleOutput}'.");
+        }
+        var ruleTaskGraph = BuildTaskGraph(workingDir, ruleOptional.Value, allRules, visitedRules, dependentsOfThisRule, orderedDependents);
+        rulesTaskGraphs.Add(ruleTaskGraph);
+      }
+      Run(new TaskGraph(rulesTaskGraphs));
+    }
+
+    /// <summary>
+    ///   Executes <paramref name="ruleToBuild" /> as defined in <paramref name="rules" />.
+    ///   This method executes the rules asynchronously and in parallel.
     /// </summary>
     public static void DoMake(string ruleToBuild, params Rule[] rules)
       => DoMake(ruleToBuild, Directory.GetCurrentDirectory(), rules);
 
     /// <summary>
-    ///   Executes rule <paramref name="ruleToBuild" /> as defined in <paramref name="rules" />.
+    ///   Executes startRule <paramref name="ruleToBuild" /> as defined in <paramref name="rules" />.
     ///   This method executes the rules in a single thread synchronously.
     /// </summary>
-    public static void DoMake(string ruleToBuild, string workingDir, params Rule[] rules) {
-      var outputToRule = new Dictionary<string, Rule>();
-      foreach (var r in rules) {
-        if (outputToRule.ContainsKey(r.Output)) {
-          throw new Exception($"Found a duplicate rule '{r.Output}'.");
-        }
-        outputToRule.Add(r.Output, r);
+    public static void DoMake(string ruleToBuild, string workingDir, params Rule[] rules)
+      => DoMake(new[] {ruleToBuild}, rules, workingDir);
+
+    private static TaskGraph BuildTaskGraph(string workingDir, Rule startRule, IDictionary<string, Rule> allRules, ISet<string> visitedRules, ISet<string> dependentsOfThisRule, IList<string> orderedDependents) {
+      if (dependentsOfThisRule.Contains(startRule.Output)) {
+        throw new Exception("Detected a cycle in rule dependencies: " +
+                            $"'{string.Join(" <- ", orderedDependents)} <- {startRule.Output}'.");
       }
-      var ruleOptional = outputToRule.Get(ruleToBuild);
-      if (!ruleOptional.HasValue) {
-        throw new Exception($"Could not find rule '{ruleToBuild}'.");
+      if (visitedRules.Contains(startRule.Output)) {
+        return new TaskGraph(startRule.Output);
       }
-      var rule = ruleOptional.Value;
-      InvokeRecipe(workingDir, outputToRule, rule, new HashSet<string>(), new HashSet<string>(), new List<string>());
+      dependentsOfThisRule.Add(startRule.Output);
+      orderedDependents.Add(startRule.Output);
+      var dependencyTasks = new List<TaskGraph>();
+      foreach (var dependentRule in startRule.Inputs.Gather(allRules.Get)) {
+        var dependencyTask = BuildTaskGraph(workingDir, dependentRule, allRules, visitedRules, dependentsOfThisRule, orderedDependents);
+        dependencyTasks.Add(dependencyTask);
+      }
+      visitedRules.Add(startRule.Output);
+      dependentsOfThisRule.Remove(startRule.Output);
+      orderedDependents.RemoveAt(orderedDependents.Count - 1);
+      return new TaskGraph(startRule.Output, () => InvokeRecipe(workingDir, startRule), dependencyTasks);
     }
 
-    private static void InvokeRecipe(string workingDir,
-                                     IDictionary<string, Rule> rulesDictionary,
-                                     Rule rule,
-                                     ISet<string> alreadyExecutedRules,
-                                     ISet<string> currentlyExecutingRules,
-                                     IList<string> currentExecutionPath) {
-      if (currentlyExecutingRules.Contains(rule.Output)) {
-        throw new Exception($"Detected a cycle in rule dependencies: " +
-                            $"'{string.Join(" <- ", currentExecutionPath)} <- {rule.Output}'.");
+    private static void InvokeRecipe(string workingDir, Rule rule)
+      => TimestampBasedBuilder.Build(rule.Recipe,
+                                     rule.Inputs
+                                         .Select(input => Path.Combine(workingDir, input))
+                                         .ToImmutableArray(),
+                                     Path.Combine(workingDir, rule.Output));
+
+    private class TaskGraph {
+      public string Name { get; }
+      public Action Recipe { get; }
+      public IList<TaskGraph> Dependencies { get; }
+
+      public TaskGraph(string name, Action recipe, IList<TaskGraph> dependencies) {
+        Name = name;
+        Recipe = recipe;
+        Dependencies = dependencies;
       }
-      if (alreadyExecutedRules.Contains(rule.Output)) {
-        return;
+
+      public TaskGraph(string name) : this(name, null, Array.Empty<TaskGraph>()) {}
+      public TaskGraph(IList<TaskGraph> subGraphs) : this(null, null, subGraphs) {}
+    }
+
+    private static void Run(TaskGraph taskGraph)
+      => RunTaskGraph(taskGraph, new Dictionary<string, Task>()).Wait();
+
+    private static Task RunTaskGraph(TaskGraph taskGraph, Dictionary<string, Task> existingTasks) {
+      Task task;
+      if (taskGraph.Name != null && existingTasks.TryGetValue(taskGraph.Name, out task)) {
+        return task;
       }
-      currentlyExecutingRules.Add(rule.Output);
-      currentExecutionPath.Add(rule.Output);
-      foreach (var dependentRule in rule.Inputs.Gather(rulesDictionary.Get)) {
-        InvokeRecipe(workingDir, rulesDictionary, dependentRule, alreadyExecutedRules, currentlyExecutingRules, currentExecutionPath);
+      task = ToTask(taskGraph, existingTasks);
+      if (taskGraph.Name != null) {
+        existingTasks.Add(taskGraph.Name, task);
       }
-      var inputAbsPaths = rule.Inputs
-                              .Select(input => Path.Combine(workingDir, input))
-                              .ToImmutableArray();
-      TimestampBasedBuilder.Build(rule.Recipe,
-                                  inputAbsPaths,
-                                  Path.Combine(workingDir, rule.Output));
-      alreadyExecutedRules.Add(rule.Output);
-      currentlyExecutingRules.Remove(rule.Output);
-      currentExecutionPath.RemoveAt(currentExecutionPath.Count - 1);
+      return task;
+    }
+
+    private static Task ToTask(TaskGraph taskGraph, Dictionary<string, Task> existingTasks) {
+      if (taskGraph.Dependencies.Count <= 0) {
+        return taskGraph.Recipe == null ? Task.CompletedTask : Task.Factory.StartNew(taskGraph.Recipe);
+      }
+      var task = Task.WhenAll(taskGraph.Dependencies.Select(tg => RunTaskGraph(tg, existingTasks)));
+      return taskGraph.Recipe == null ? task : task.ContinueWith(t => taskGraph.Recipe());
     }
   }
 }
