@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace Bud.Make {
   /// <summary>
@@ -72,19 +71,14 @@ namespace Bud.Make {
         }
         allRules.Add(r.Output, r);
       }
-      var visitedRules = new HashSet<string>();
-      var dependentsOfThisRule = new HashSet<string>();
-      var orderedDependents = new List<string>();
-      var rulesTaskGraphs = new List<TaskGraph>();
-      foreach (var ruleOutput in rulesToBuild) {
-        var ruleOptional = allRules.Get(ruleOutput);
-        if (!ruleOptional.HasValue) {
-          throw new Exception($"Could not find rule '{ruleOutput}'.");
-        }
-        var ruleTaskGraph = BuildTaskGraph(workingDir, ruleOptional.Value, allRules, visitedRules, dependentsOfThisRule, orderedDependents);
-        rulesTaskGraphs.Add(ruleTaskGraph);
-      }
-      Run(new TaskGraph(rulesTaskGraphs));
+      var resolvedRulesToBuild = rulesToBuild.Select(name => allRules.Get(name).GetOrElse(() => {
+        throw new Exception($"Could not find rule '{name}'.");
+      }));
+      var taskGraph = TaskGraph.ToTaskGraph(resolvedRulesToBuild,
+                                            rule => rule.Output,
+                                            rule => rule.Inputs.Select(name => allRules.Get(name)).Gather(),
+                                            rule => () => InvokeRecipe(workingDir, rule));
+      taskGraph.Run();
     }
 
     /// <summary>
@@ -101,70 +95,11 @@ namespace Bud.Make {
     public static void DoMake(string ruleToBuild, string workingDir, params Rule[] rules)
       => DoMake(new[] {ruleToBuild}, rules, workingDir);
 
-    private static TaskGraph BuildTaskGraph(string workingDir, Rule startRule, IDictionary<string, Rule> allRules, ISet<string> visitedRules, ISet<string> dependentsOfThisRule, IList<string> orderedDependents) {
-      if (dependentsOfThisRule.Contains(startRule.Output)) {
-        throw new Exception("Detected a cycle in rule dependencies: " +
-                            $"'{string.Join(" <- ", orderedDependents)} <- {startRule.Output}'.");
-      }
-      if (visitedRules.Contains(startRule.Output)) {
-        return new TaskGraph(startRule.Output);
-      }
-      dependentsOfThisRule.Add(startRule.Output);
-      orderedDependents.Add(startRule.Output);
-      var dependencyTasks = new List<TaskGraph>();
-      foreach (var dependentRule in startRule.Inputs.Gather(allRules.Get)) {
-        var dependencyTask = BuildTaskGraph(workingDir, dependentRule, allRules, visitedRules, dependentsOfThisRule, orderedDependents);
-        dependencyTasks.Add(dependencyTask);
-      }
-      visitedRules.Add(startRule.Output);
-      dependentsOfThisRule.Remove(startRule.Output);
-      orderedDependents.RemoveAt(orderedDependents.Count - 1);
-      return new TaskGraph(startRule.Output, () => InvokeRecipe(workingDir, startRule), dependencyTasks);
-    }
-
     private static void InvokeRecipe(string workingDir, Rule rule)
       => TimestampBasedBuilder.Build(rule.Recipe,
                                      rule.Inputs
                                          .Select(input => Path.Combine(workingDir, input))
                                          .ToImmutableArray(),
                                      Path.Combine(workingDir, rule.Output));
-
-    private class TaskGraph {
-      public string Name { get; }
-      public Action Recipe { get; }
-      public IList<TaskGraph> Dependencies { get; }
-
-      public TaskGraph(string name, Action recipe, IList<TaskGraph> dependencies) {
-        Name = name;
-        Recipe = recipe;
-        Dependencies = dependencies;
-      }
-
-      public TaskGraph(string name) : this(name, null, Array.Empty<TaskGraph>()) {}
-      public TaskGraph(IList<TaskGraph> subGraphs) : this(null, null, subGraphs) {}
-    }
-
-    private static void Run(TaskGraph taskGraph)
-      => RunTaskGraph(taskGraph, new Dictionary<string, Task>()).Wait();
-
-    private static Task RunTaskGraph(TaskGraph taskGraph, Dictionary<string, Task> existingTasks) {
-      Task task;
-      if (taskGraph.Name != null && existingTasks.TryGetValue(taskGraph.Name, out task)) {
-        return task;
-      }
-      task = ToTask(taskGraph, existingTasks);
-      if (taskGraph.Name != null) {
-        existingTasks.Add(taskGraph.Name, task);
-      }
-      return task;
-    }
-
-    private static Task ToTask(TaskGraph taskGraph, Dictionary<string, Task> existingTasks) {
-      if (taskGraph.Dependencies.Count <= 0) {
-        return taskGraph.Recipe == null ? Task.CompletedTask : Task.Factory.StartNew(taskGraph.Recipe);
-      }
-      var task = Task.WhenAll(taskGraph.Dependencies.Select(tg => RunTaskGraph(tg, existingTasks)));
-      return taskGraph.Recipe == null ? task : task.ContinueWith(t => taskGraph.Recipe());
-    }
   }
 }

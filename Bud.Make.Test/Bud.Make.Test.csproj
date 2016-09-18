@@ -71,6 +71,7 @@
     <Compile Include="RulesTest.cs" />
     <Compile Include="HasherTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TaskGraphTest.cs" />
     <Compile Include="TimestampBasedBuilderTest.cs" />
   </ItemGroup>
   <ItemGroup>

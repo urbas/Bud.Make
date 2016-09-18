@@ -87,7 +87,7 @@ namespace Bud.Make {
                      Rules.Rule("foo.in2", recipeMock.Object, "foo.out1"));
       });
       Assert.That(ex.Message,
-                  Does.Contain("'foo.out2 <- foo.in2 <- foo.out1 <- foo.in1 <- foo.out2'"));
+                  Does.Contain("'foo.out2 depends on foo.in2 depends on foo.out1 depends on foo.in1 depends on foo.out2'"));
     }
 
     [Test]
