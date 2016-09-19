@@ -1,3 +1,5 @@
+[![Build status](https://ci.appveyor.com/api/projects/status/190xdtdaq6dotbjb/branch/master?svg=true)](https://ci.appveyor.com/project/urbas/bud-make/branch/master)
+
 __Table of contents__
 
 * [About](#about)

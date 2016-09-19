@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>Bud.Make</id>
+    <version>1.0.0-rc1</version>
+    <title>Bud.Make</title>
+    <authors>Matej Urbas</authors>
+    <owners>Matej Urbas</owners>
+    <licenseUrl>https://github.com/urbas/Bud.Make/blob/master/LICENCE.md</licenseUrl>
+    <projectUrl>https://github.com/urbas/Bud.Make</projectUrl>
+    <iconUrl>https://ci.appveyor.com/api/projects/status/190xdtdaq6dotbjb/branch/master</iconUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Bud.Make is a C# library that provides functionality similar to GNU make. The rules are invoked in parallel.</description>
+    <releaseNotes>
+      First major release.
+    </releaseNotes>
+    <copyright>Copyright 2016</copyright>
+    <tags>Bud.Make initial release.</tags>
+    <dependencies>
+      <dependency id="Bud.Option" version="1.0.1" />
+      <dependency id="System.Collections.Immutable" version="1.2.0" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="bin/Debug/Bud.Make.dll" target="lib/net46" />
+    <file src="bin/Debug/Bud.Make.xml" target="lib/net46" />
+  </files>
+</package>
