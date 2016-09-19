@@ -33,8 +33,7 @@ This library does not support pattern rules. You can implement pattern rules by 
 
 ```csharp
 var cpp2ObjRules = new [] {"a.cpp", "b.cpp", ...}
-  .Select(cppFile => Rules.Rule(ChangeExtension(cppFile, ".o"), CompileCppToObj, cppFile))
-  .ToList();
+  .Select(cppFile => Rule(ChangeExtension(cppFile, ".o"), CompileCppToObj, cppFile));
 DoMake(cpp2ObjRules);
 ```
 
