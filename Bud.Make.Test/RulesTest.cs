@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using Moq;
 using NUnit.Framework;
+using static Bud.Make.Rules;
 
 namespace Bud.Make {
   public class RulesTest {
@@ -12,7 +13,7 @@ namespace Bud.Make {
     public void DoMake_invokes_the_recipe_when_output_file_not_present() {
       using (var dir = new TmpDir()) {
         dir.CreateFile("This is Sparta!", "foo.in");
-        Rules.DoMake("foo.out", dir.Path, Rules.Rule("foo.out", RemoveSpaces, "foo.in"));
+        DoMake("foo.out", dir.Path, Rule("foo.out", RemoveSpaces, "foo.in"));
         FileAssert.AreEqual(dir.CreateFile("ThisisSparta!", "expected_output"),
                             dir.CreatePath("foo.out"));
       }
@@ -25,7 +26,7 @@ namespace Bud.Make {
         var inputFile = dir.CreateEmptyFile("foo.in");
         var outputFile = dir.CreateEmptyFile("foo.out");
         File.SetLastWriteTimeUtc(inputFile, File.GetLastWriteTimeUtc(outputFile) - TimeSpan.FromSeconds(5));
-        Rules.DoMake("foo.out", dir.Path, Rules.Rule("foo.out", recipeMock.Object, "foo.in"));
+        DoMake("foo.out", dir.Path, Rule("foo.out", recipeMock.Object, "foo.in"));
         recipeMock.Verify(s => s(It.IsAny<string>(), It.IsAny<string>()),
                           Times.Never);
       }
@@ -34,9 +35,9 @@ namespace Bud.Make {
     [Test]
     public void DoMake_throws_when_given_duplicate_rules() {
       var exception = Assert.Throws<Exception>(() => {
-        Rules.DoMake("foo",
-                     Rules.Rule("foo", RemoveSpaces, "bar"),
-                     Rules.Rule("foo", RemoveSpaces, "moo"));
+        DoMake("foo",
+               Rule("foo", RemoveSpaces, "bar"),
+               Rule("foo", RemoveSpaces, "moo"));
       });
       Assert.That(exception.Message, Does.Contain("'foo'"));
     }
@@ -44,7 +45,7 @@ namespace Bud.Make {
     [Test]
     public void DoMake_throws_when_rule_does_not_exist() {
       var exception = Assert.Throws<Exception>(() => {
-        Rules.DoMake("invalid.out", "/foo/bar", Rules.Rule("out", RemoveSpaces, "in"));
+        DoMake("invalid.out", "/foo/bar", Rule("out", RemoveSpaces, "in"));
       });
       Assert.That(exception.Message, Does.Contain("'invalid.out'"));
     }
@@ -54,11 +55,11 @@ namespace Bud.Make {
       using (var dir = new TmpDir()) {
         dir.CreateFile("foo bar", "foo");
         var expectedOutput = dir.CreateFile("FOO BAR and foobar", "expected_output");
-        Rules.DoMake("foo.joined",
-                     dir.Path,
-                     Rules.Rule("foo.upper", Uppercase, "foo"),
-                     Rules.Rule("foo.nospace", RemoveSpaces, "foo"),
-                     Rules.Rule("foo.joined", WriteAndSeparatedFileContents, "foo.upper", "foo.nospace"));
+        DoMake("foo.joined",
+               dir.Path,
+               Rule("foo.upper", Uppercase, "foo"),
+               Rule("foo.nospace", RemoveSpaces, "foo"),
+               Rule("foo.joined", WriteAndSeparatedFileContents, "foo.upper", "foo.nospace"));
         FileAssert.AreEqual(expectedOutput, dir.CreatePath("foo.joined"));
       }
     }
@@ -66,11 +67,11 @@ namespace Bud.Make {
     [Test]
     public void DoMake_does_not_invoke_dependent_rules_twice() {
       var recipeMock = new Mock<SingleFileBuilder>();
-      Rules.DoMake("foo.out3",
-                   "/foo/bar",
-                   Rules.Rule("foo.out1", recipeMock.Object, "foo.in"),
-                   Rules.Rule("foo.out2", (string inFile, string outFile) => {}, "foo.out1"),
-                   Rules.Rule("foo.out3", (inFiles, outFile) => {}, "foo.out1", "foo.out2"));
+      DoMake("foo.out3",
+             "/foo/bar",
+             Rule("foo.out1", recipeMock.Object, "foo.in"),
+             Rule("foo.out2", (string inFile, string outFile) => {}, "foo.out1"),
+             Rule("foo.out3", (inFiles, outFile) => {}, "foo.out1", "foo.out2"));
       recipeMock.Verify(s => s(It.IsAny<string>(), It.IsAny<string>()),
                         Times.Once);
     }
@@ -79,12 +80,12 @@ namespace Bud.Make {
     public void DoMake_throws_when_there_is_a_cycle() {
       var recipeMock = new Mock<SingleFileBuilder>();
       var ex = Assert.Throws<Exception>(() => {
-        Rules.DoMake("foo.out2",
-                     "/foo/bar",
-                     Rules.Rule("foo.out1", recipeMock.Object, "foo.in1"),
-                     Rules.Rule("foo.out2", recipeMock.Object, "foo.in2"),
-                     Rules.Rule("foo.in1", recipeMock.Object, "foo.out2"),
-                     Rules.Rule("foo.in2", recipeMock.Object, "foo.out1"));
+        DoMake("foo.out2",
+               "/foo/bar",
+               Rule("foo.out1", recipeMock.Object, "foo.in1"),
+               Rule("foo.out2", recipeMock.Object, "foo.in2"),
+               Rule("foo.in1", recipeMock.Object, "foo.out2"),
+               Rule("foo.in2", recipeMock.Object, "foo.out1"));
       });
       Assert.That(ex.Message,
                   Does.Contain("'foo.out2 depends on foo.in2 depends on foo.out1 depends on foo.in1 depends on foo.out2'"));
@@ -98,19 +99,19 @@ namespace Bud.Make {
         dir.CreateFile("should be upper", "foo.in1");
         dir.CreateFile("SHOULD BE LOWER", "foo.in2");
         var expectedOutput = dir.CreateFile("SHOULD BE UPPER and should be lower", "expected_output");
-        Rules.DoMake("foo.joined",
-                     dir.Path,
-                     Rules.Rule("foo.upper", (input, output) => {
-                       latchA.Signal();
-                       latchB.Wait();
-                       Uppercase(input, output);
-                     }, "foo.in1"),
-                     Rules.Rule("foo.lower", (s, file) => {
-                       latchB.Signal();
-                       latchA.Wait();
-                       Lowercase(s, file);
-                     }, "foo.in2"),
-                     Rules.Rule("foo.joined", WriteAndSeparatedFileContents, "foo.upper", "foo.lower"));
+        DoMake("foo.joined",
+               dir.Path,
+               Rule("foo.upper", (input, output) => {
+                 latchA.Signal();
+                 latchB.Wait();
+                 Uppercase(input, output);
+               }, "foo.in1"),
+               Rule("foo.lower", (s, file) => {
+                 latchB.Signal();
+                 latchA.Wait();
+                 Lowercase(s, file);
+               }, "foo.in2"),
+               Rule("foo.joined", WriteAndSeparatedFileContents, "foo.upper", "foo.lower"));
         FileAssert.AreEqual(expectedOutput, dir.CreatePath("foo.joined"));
       }
     }
@@ -118,7 +119,7 @@ namespace Bud.Make {
     [Test]
     public void DoMake_executes_many_independent_rules() {
       var recipeMock = new Mock<FilesBuilder>();
-      Rules.DoMake(new[] {"foo.nospace", "bar.nospace"}, GetComplexRules(recipeMock), "/dir");
+      DoMake(GetComplexRules(recipeMock), new[] {"foo.nospace", "bar.nospace"}, "/dir");
 
       var fooInput = ImmutableArray.Create(Path.Combine("/dir", "foo"));
       recipeMock.Verify(r => r(fooInput, Path.Combine("/dir", "foo.nospace")));
@@ -130,10 +131,22 @@ namespace Bud.Make {
     [Test]
     public void DoMake_does_not_invoke_repeated() {
       var recipeMock = new Mock<FilesBuilder>();
-      Rules.DoMake(new[] { "foobar.nospace", "foobar.nospace.lu" }, GetComplexRules(recipeMock), "/dir");
+      DoMake(GetComplexRules(recipeMock), new[] {"foobar.nospace", "foobar.nospace.lu"}, "/dir");
 
       var fooInput = ImmutableArray.Create(Path.Combine("/dir", "foo"));
       recipeMock.Verify(r => r(fooInput, Path.Combine("/dir", "foo.nospace")), Times.Once);
+    }
+
+    [Test]
+    public void DoMake_builds_all_by_default() {
+      var recipeMock = new Mock<FilesBuilder>();
+      var rules = GetComplexRules(recipeMock);
+      DoMake(rules, workingDir: "/dir");
+
+      foreach (var rule in rules) {
+        var inputs = rule.Inputs.Select(s => Path.Combine("/dir", s)).ToImmutableArray();
+        recipeMock.Verify(r => r(inputs, Path.Combine("/dir", rule.Output)), Times.Once);
+      }
     }
 
     private static void RemoveSpaces(string inputFile, string outputFile) {
@@ -161,12 +174,12 @@ namespace Bud.Make {
     }
 
     private static Rule[] GetComplexRules(IMock<FilesBuilder> recipeMock) => new[] {
-      Rules.Rule("foo.nospace", recipeMock.Object, "foo"),
-      Rules.Rule("foo.nospace.upper", recipeMock.Object, "foo.nospace"),
-      Rules.Rule("bar.nospace", recipeMock.Object, "bar"),
-      Rules.Rule("bar.nospace.lower", recipeMock.Object, "bar.nospace"),
-      Rules.Rule("foobar.nospace.lu", recipeMock.Object, "foo.nospace.upper", "bar.nospace.lower"),
-      Rules.Rule("foobar.nospace", recipeMock.Object, "foo.nospace", "bar.nospace")
+      Rule("foo.nospace", recipeMock.Object, "foo"),
+      Rule("foo.nospace.upper", recipeMock.Object, "foo.nospace"),
+      Rule("bar.nospace", recipeMock.Object, "bar"),
+      Rule("bar.nospace.lower", recipeMock.Object, "bar.nospace"),
+      Rule("foobar.nospace.lu", recipeMock.Object, "foo.nospace.upper", "bar.nospace.lower"),
+      Rule("foobar.nospace", recipeMock.Object, "foo.nospace", "bar.nospace")
     };
   }
 }

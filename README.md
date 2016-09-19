@@ -25,6 +25,17 @@ class Build {
 }
 ```
 
-# Wishlist
+## Missing features
+
+This library does not support pattern rules. You can implement pattern rules by generating rules for each files in a function:
+
+```csharp
+var cpp2ObjRules = new [] {"a.cpp", "b.cpp", ...}
+  .Select(cppFile => Rules.Rule(ChangeExtension(cppFile, ".o"), CompileCppToObj, cppFile))
+  .ToList();
+DoMake(cpp2ObjRules);
+```
+
+# TODO
 
 -   Hash-based build (instead of timestamps).

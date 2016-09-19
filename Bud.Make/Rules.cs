@@ -52,18 +52,19 @@ namespace Bud.Make {
     /// <summary>
     ///   Executes <paramref name="rulesToBuild" /> in parallel.
     /// </summary>
+    /// <param name="rules">a list of rules. This list is the definition of what can be built.</param>
     /// <param name="rulesToBuild">
     ///   the outputs to build. These strings are matched against the outputs as defined in
     ///   <paramref name="rules" />.
     /// </param>
-    /// <param name="rules">a list of rules. This list is the definition of what can be built.</param>
     /// <param name="workingDir">the directory relative to which the output and input files will be matched.</param>
     /// <exception cref="Exception">
     ///   thrown if there are duplicate rules specified in <paramref name="rules" /> or if there are
     ///   cycles between rules.
     /// </exception>
-    public static void DoMake(IEnumerable<string> rulesToBuild, IEnumerable<Rule> rules, string workingDir = null) {
+    public static void DoMake(IEnumerable<Rule> rules, IEnumerable<string> rulesToBuild = null, string workingDir = null) {
       workingDir = workingDir ?? Directory.GetCurrentDirectory();
+      rulesToBuild = rulesToBuild ?? rules.Select(rule => rule.Output);
       var allRules = new Dictionary<string, Rule>();
       foreach (var r in rules) {
         if (allRules.ContainsKey(r.Output)) {
@@ -93,7 +94,7 @@ namespace Bud.Make {
     ///   This method executes the rules in a single thread synchronously.
     /// </summary>
     public static void DoMake(string ruleToBuild, string workingDir, params Rule[] rules)
-      => DoMake(new[] {ruleToBuild}, rules, workingDir);
+      => DoMake(rules, new[] {ruleToBuild}, workingDir);
 
     private static void InvokeRecipe(string workingDir, Rule rule)
       => TimestampBasedBuilder.Build(rule.Recipe,
