@@ -29,7 +29,7 @@ class Build {
 
 ## Missing features
 
-This library does not support pattern rules. You can implement pattern rules by generating rules for each files in a function:
+This library does not support pattern rules. You can implement pattern rules by generating rules for each file. The pseudocode below illustrates the idea:
 
 ```csharp
 var cpp2ObjRules = new [] {"a.cpp", "b.cpp", ...}
