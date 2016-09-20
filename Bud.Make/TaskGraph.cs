@@ -97,7 +97,7 @@ namespace Bud.Make {
         return task;
       }
       if (Dependencies.Length <= 0) {
-        task = Action == null ? Task.CompletedTask : Task.Factory.StartNew(Action);
+        task = Action == null ? Task.CompletedTask : Task.Run(Action);
       } else {
         task = Task.WhenAll(Dependencies.Select(tg => tg.ToTask(existingTasks)));
         task = Action == null ? task : task.ContinueWith(t => Action());
