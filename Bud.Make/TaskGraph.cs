@@ -81,23 +81,22 @@ namespace Bud.Make {
 
     private class TaskGraphBuilder<TTask> {
       private readonly Func<TTask, IEnumerable<TTask>> dependenciesOfTask;
+      private readonly Func<TTask, Action> actionOfTask;
+      private readonly Func<TTask, string> nameOfTask;
+      private readonly IDictionary<string, TaskGraph> finishedTasks;
+      private readonly HashSet<string> dependencyChain;
+      private readonly List<string> orderedDependencyChain;
 
       public TaskGraphBuilder(Func<TTask, string> nameOfTask,
                               Func<TTask, IEnumerable<TTask>> dependenciesOfTask,
                               Func<TTask, Action> actionOfTask) {
         this.dependenciesOfTask = dependenciesOfTask;
-        ActionOfTask = actionOfTask;
-        NameOfTask = nameOfTask;
-        FinishedTasks = new Dictionary<string, TaskGraph>();
-        DependencyChain = new HashSet<string>();
-        OrderedDependencyChain = new List<string>();
+        this.actionOfTask = actionOfTask;
+        this.nameOfTask = nameOfTask;
+        finishedTasks = new Dictionary<string, TaskGraph>();
+        dependencyChain = new HashSet<string>();
+        orderedDependencyChain = new List<string>();
       }
-
-      private Func<TTask, Action> ActionOfTask { get; }
-      private Func<TTask, string> NameOfTask { get; }
-      private IDictionary<string, TaskGraph> FinishedTasks { get; }
-      private HashSet<string> DependencyChain { get; }
-      private List<string> OrderedDependencyChain { get; }
 
       public TaskGraph ToTaskGraph(IEnumerable<TTask> tasks) => new TaskGraph(ToTaskGraphs(tasks));
 
@@ -105,35 +104,35 @@ namespace Bud.Make {
         => tasks.Select(ToTaskGraph).ToImmutableArray();
 
       private TaskGraph ToTaskGraph(TTask task) {
-        var taskName = NameOfTask(task);
+        var taskName = nameOfTask(task);
         TaskGraph cachedTaskGraph;
-        if (FinishedTasks.TryGetValue(taskName, out cachedTaskGraph)) {
+        if (finishedTasks.TryGetValue(taskName, out cachedTaskGraph)) {
           return cachedTaskGraph;
         }
-        DescendOneLevel(taskName);
+        EnterTask(taskName);
         var dependencyTasks = ToTaskGraphs(dependenciesOfTask(task));
-        AscendOneLevel(taskName);
+        LeaveTask(taskName);
         return CreateTaskGraph(task, taskName, dependencyTasks);
       }
 
-      private void DescendOneLevel(string taskName) {
-        if (DependencyChain.Contains(taskName)) {
+      private void EnterTask(string taskName) {
+        if (dependencyChain.Contains(taskName)) {
           throw new Exception("Detected a dependency cycle: " +
-                              $"'{string.Join(" depends on ", OrderedDependencyChain)} " +
+                              $"'{string.Join(" depends on ", orderedDependencyChain)} " +
                               $"depends on {taskName}'.");
         }
-        DependencyChain.Add(taskName);
-        OrderedDependencyChain.Add(taskName);
+        dependencyChain.Add(taskName);
+        orderedDependencyChain.Add(taskName);
       }
 
-      private void AscendOneLevel(string taskName) {
-        DependencyChain.Remove(taskName);
-        OrderedDependencyChain.RemoveAt(OrderedDependencyChain.Count - 1);
+      private void LeaveTask(string taskName) {
+        dependencyChain.Remove(taskName);
+        orderedDependencyChain.RemoveAt(orderedDependencyChain.Count - 1);
       }
 
       private TaskGraph CreateTaskGraph(TTask task, string taskName, ImmutableArray<TaskGraph> dependencyTasks) {
-        var thisTaskGraph = new TaskGraph(taskName, ActionOfTask(task), dependencyTasks);
-        FinishedTasks.Add(taskName, thisTaskGraph);
+        var thisTaskGraph = new TaskGraph(taskName, actionOfTask(task), dependencyTasks);
+        finishedTasks.Add(taskName, thisTaskGraph);
         return thisTaskGraph;
       }
     }
