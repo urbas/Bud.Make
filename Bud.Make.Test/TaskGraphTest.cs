@@ -10,15 +10,15 @@ namespace Bud.Make {
     [Test]
     public void Run_invokes_action() {
       var action = new Mock<Action>();
-      new TaskGraph(null, action.Object, ImmutableArray<TaskGraph>.Empty).Run();
+      new TaskGraph(action.Object, ImmutableArray<TaskGraph>.Empty).Run();
       action.Verify(a => a(), Times.Once);
     }
 
     [Test]
     public void Run_invokes_actions_of_dependencies_before_dependent() {
       var queue = new ConcurrentQueue<int>();
-      var dependency = new TaskGraph(null, () => queue.Enqueue(1), ImmutableArray<TaskGraph>.Empty);
-      var graph = new TaskGraph(null, () => queue.Enqueue(2), ImmutableArray.Create(dependency));
+      var dependency = new TaskGraph(() => queue.Enqueue(1));
+      var graph = new TaskGraph(() => queue.Enqueue(2), dependency);
       graph.Run();
       Assert.AreEqual(new[] {1, 2}, queue);
     }
@@ -26,8 +26,8 @@ namespace Bud.Make {
     [Test]
     public void Run_invokes_dependencies_with_same_name_once() {
       var action = new Mock<Action>();
-      var dependency = new TaskGraph("foo", action.Object, ImmutableArray<TaskGraph>.Empty);
-      var graph = new TaskGraph(null, () => {}, ImmutableArray.Create(dependency, dependency));
+      var dependency = new TaskGraph(action.Object, ImmutableArray<TaskGraph>.Empty);
+      var graph = new TaskGraph(() => {}, ImmutableArray.Create(dependency, dependency));
       graph.Run();
       action.Verify(a => a(), Times.Once);
     }
@@ -54,12 +54,6 @@ namespace Bud.Make {
       var b = taskGraph.Dependencies[1];
       var c = a.Dependencies[1];
       var d = b.Dependencies[0];
-
-      Assert.IsNull(taskGraph.Name);
-      Assert.AreEqual("a", a.Name);
-      Assert.AreEqual("b", b.Name);
-      Assert.AreEqual("c", c.Name);
-      Assert.AreEqual("d", d.Name);
 
       Assert.AreEqual(new[] {a, b}, taskGraph.Dependencies);
       Assert.AreEqual(new[] {b, c}, a.Dependencies);

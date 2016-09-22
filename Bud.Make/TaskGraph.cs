@@ -10,9 +10,9 @@ namespace Bud.Make {
   /// </summary>
   public class TaskGraph {
     /// <summary>
-    ///   The name of this task.
+    ///   The action that this task will execute.
     /// </summary>
-    public string Name { get; }
+    public Action Action { get; }
 
     /// <summary>
     ///   The task on which this task depends. These will be executed before this task.
@@ -20,17 +20,31 @@ namespace Bud.Make {
     public ImmutableArray<TaskGraph> Dependencies { get; }
 
     /// <summary>
-    ///   The action that this task will execute.
+    ///   Creates a task graph with a root action and some dependency actions.
     /// </summary>
-    public Action Action { get; }
+    /// <param name="action">the action to be invoked after all the dependencies have executed.</param>
+    /// <param name="dependencies">the dependencies to execute before executing the action.</param>
+    /// <remarks>There is no guarantee on the order of execution of dependencies.</remarks>
+    public TaskGraph(Action action, params TaskGraph[] dependencies) : this(action, ImmutableArray.CreateRange(dependencies)) {}
 
-    internal TaskGraph(string name, Action action, ImmutableArray<TaskGraph> dependencies) {
-      Name = name;
+    /// <summary>
+    ///   Creates a task graph with a single action (without dependencies).
+    /// </summary>
+    /// <param name="action">the action to be invoked.</param>
+    public TaskGraph(Action action) : this(action, ImmutableArray<TaskGraph>.Empty) {}
+
+    /// <summary>
+    ///   Creates a task graph with a root action and some dependency actions.
+    /// </summary>
+    /// <param name="action">the action to be invoked after all the dependencies have executed.</param>
+    /// <param name="dependencies">the dependencies to execute before executing the action.</param>
+    /// <remarks>There is no guarantee on the order of execution of dependencies.</remarks>
+    public TaskGraph(Action action, ImmutableArray<TaskGraph> dependencies) {
       Action = action;
       Dependencies = dependencies;
     }
 
-    internal TaskGraph(ImmutableArray<TaskGraph> subGraphs) : this(null, null, subGraphs) {}
+    internal TaskGraph(ImmutableArray<TaskGraph> subGraphs) : this(null, subGraphs) {}
 
     /// <summary>
     ///   Executes all tasks in this graph in parallel (using the <see cref="Task" /> API).
@@ -41,7 +55,7 @@ namespace Bud.Make {
     /// <summary>
     ///   Asynchronously executes all tasks in this graph in parallel (using the <see cref="Task" /> API).
     /// </summary>
-    public async Task RunAsync() => await ToTask(new Dictionary<string, Task>());
+    public async Task RunAsync() => await ToTask(new Dictionary<TaskGraph, Task>());
 
     /// <summary>
     ///   Converts objects of type <typeparamref name="T" /> into a task graph. Each object must have a name. The name is
@@ -62,9 +76,9 @@ namespace Bud.Make {
                                            Func<T, Action> actionOfTask)
       => new TaskGraphBuilder<T>(nameOfTask, dependenciesOfTask, actionOfTask).ToTaskGraph(rootTasks);
 
-    private Task ToTask(IDictionary<string, Task> existingTasks) {
+    private Task ToTask(IDictionary<TaskGraph, Task> existingTasks) {
       Task task;
-      if (Name != null && existingTasks.TryGetValue(Name, out task)) {
+      if (existingTasks.TryGetValue(this, out task)) {
         return task;
       }
       if (Dependencies.Length <= 0) {
@@ -73,9 +87,7 @@ namespace Bud.Make {
         task = Task.WhenAll(Dependencies.Select(tg => tg.ToTask(existingTasks)));
         task = Action == null ? task : task.ContinueWith(t => Action());
       }
-      if (Name != null) {
-        existingTasks.Add(Name, task);
-      }
+      existingTasks.Add(this, task);
       return task;
     }
 
@@ -131,7 +143,7 @@ namespace Bud.Make {
       }
 
       private TaskGraph CreateTaskGraph(TTask task, string taskName, ImmutableArray<TaskGraph> dependencyTasks) {
-        var thisTaskGraph = new TaskGraph(taskName, actionOfTask(task), dependencyTasks);
+        var thisTaskGraph = new TaskGraph(actionOfTask(task), dependencyTasks);
         finishedTasks.Add(taskName, thisTaskGraph);
         return thisTaskGraph;
       }
