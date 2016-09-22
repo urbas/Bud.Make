@@ -64,22 +64,38 @@ namespace Bud.Make {
     /// </exception>
     public static void DoMake(IEnumerable<Rule> rules, IEnumerable<string> rulesToBuild = null, string workingDir = null) {
       workingDir = workingDir ?? Directory.GetCurrentDirectory();
-      rulesToBuild = rulesToBuild ?? rules.Select(rule => rule.Output);
+      var rulesAsList = rules as IList<Rule> ?? rules.ToList();
+      var allRules = ToOutput2RulesDict(rulesAsList);
+      var taskGraph = TaskGraph.ToTaskGraph(GetRulesToBuild(rulesToBuild, allRules, rulesAsList),
+                                           rule => rule.Output,
+                                           rule => rule.Inputs.Select(name => allRules.Get(name)).Gather(),
+                                           rule => () => InvokeRecipe(workingDir, rule));
+      taskGraph.Run();
+    }
+
+    private static IEnumerable<Rule> GetRulesToBuild(IEnumerable<string> rulesToBuild,
+                                                     IDictionary<string, Rule> allRules,
+                                                     IEnumerable<Rule> rulesAsList) {
+      if (rulesToBuild != null) {
+        var toBuild = rulesToBuild as IList<string> ?? rulesToBuild.ToList();
+        if (toBuild.Count > 0) {
+          return toBuild.Select(name => allRules.Get(name).GetOrElse(() => {
+            throw new Exception($"Could not find rule '{name}'.");
+          }));
+        }
+      }
+      return rulesAsList;
+    }
+
+    private static Dictionary<string, Rule> ToOutput2RulesDict(IList<Rule> rulesAsList) {
       var allRules = new Dictionary<string, Rule>();
-      foreach (var r in rules) {
+      foreach (var r in rulesAsList) {
         if (allRules.ContainsKey(r.Output)) {
           throw new Exception($"Found a duplicate rule '{r.Output}'.");
         }
         allRules.Add(r.Output, r);
       }
-      var resolvedRulesToBuild = rulesToBuild.Select(name => allRules.Get(name).GetOrElse(() => {
-        throw new Exception($"Could not find rule '{name}'.");
-      }));
-      var taskGraph = TaskGraph.ToTaskGraph(resolvedRulesToBuild,
-                                            rule => rule.Output,
-                                            rule => rule.Inputs.Select(name => allRules.Get(name)).Gather(),
-                                            rule => () => InvokeRecipe(workingDir, rule));
-      taskGraph.Run();
+      return allRules;
     }
 
     /// <summary>

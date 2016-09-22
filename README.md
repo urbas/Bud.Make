@@ -36,7 +36,3 @@ var cpp2ObjRules = new [] {"a.cpp", "b.cpp", ...}
   .Select(cppFile => Rule(ChangeExtension(cppFile, ".o"), CompileCppToObj, cppFile));
 DoMake(cpp2ObjRules);
 ```
-
-# TODO
-
--   Hash-based build (instead of timestamps).
