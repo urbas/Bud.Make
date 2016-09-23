@@ -7,6 +7,6 @@ namespace Bud.Make {
   ///   file must exist at the path specified in the <paramref name="outputFile" /> parameter.
   /// </summary>
   /// <param name="inputFiles">input file paths.</param>
-  /// <param name="outputFile">the path to the output file this builder must produce.</param>
+  /// <param name="outputFile">the path to the output file this uilder must produce.</param>
   public delegate void FilesBuilder(ImmutableArray<string> inputFiles, string outputFile);
 }
