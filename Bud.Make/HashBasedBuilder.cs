@@ -6,7 +6,7 @@ using System.Linq;
 
 namespace Bud.Make {
   /// <summary>
-  ///   A collection of utility functions for building output files from input files. Hash digests of the input files are
+  ///   A collection of utility functions for building output files from input files. Hash digests of input files are
   ///   used to determine whether the output file is outdated.
   /// </summary>
   public static class HashBasedBuilder {
